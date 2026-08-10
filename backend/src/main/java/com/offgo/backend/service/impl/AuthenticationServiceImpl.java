@@ -22,6 +22,8 @@
 
 package com.offgo.backend.service.impl;
 
+import java.time.LocalDateTime;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -40,6 +42,7 @@ import com.offgo.backend.security.jwt.JwtService;
 import com.offgo.backend.service.auth.AuthenticationService;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
+import com.offgo.backend.enums.UserStatus;
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -61,16 +64,38 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         if (userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
             throw new DuplicateResourceException("Phone number is already registered.");
         }
+        if (userRepository.existsByEmployeeId(request.getEmployeeId())) {
+            throw new DuplicateResourceException("Employee ID is already registered.");
+        }
+
+        Role requestedRole = request.getRole();
+                        if (requestedRole == null) {
+                        requestedRole = Role.EMPLOYEE;
+                        }
+                        if (requestedRole != Role.EMPLOYEE &&
+                        requestedRole != Role.DRIVER) {
+                        throw new IllegalArgumentException(
+                                "Only Employee and Driver registration is allowed."
+                        );
+        }
 
        User user = User.builder()
         .firstName(request.getFirstName())
         .lastName(request.getLastName())
+        .employeeId(request.getEmployeeId())
+        .department(request.getDepartment())
         .email(request.getEmail())
-        .password(passwordEncoder.encode(request.getPassword()))
         .phoneNumber(request.getPhoneNumber())
-        .role(Role.EMPLOYEE)
+        .password(passwordEncoder.encode(request.getPassword()))
+        .role(requestedRole)
+        .status(UserStatus.ACTIVE)
         .build();
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
 
+                throw new IllegalArgumentException(
+            "Passwords do not match.");
+
+        }
         User savedUser = userRepository.save(user);
         log.info("User registered");
         return ApiResponse.<String>builder()
@@ -96,7 +121,23 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         User user = userRepository
                 .findByEmail(request.getEmail())
                 .orElseThrow();
-        log.info("User authenticated");
+        if (user.getStatus() == UserStatus.PENDING) {
+            user.setStatus(UserStatus.ACTIVE);
+        }
+
+                if (user.getStatus() == UserStatus.REJECTED) {
+                throw new IllegalStateException(
+                        "Your account has been rejected.");
+                }
+
+                if (user.getStatus() == UserStatus.BLOCKED) {
+                throw new IllegalStateException(
+                        "Your account has been blocked.");
+                }
+
+                user.setLastLogin(LocalDateTime.now());
+
+                userRepository.save(user);
         LoginResponse response = LoginResponse.builder()
                 .token(token)
                 .id(user.getId().toString())

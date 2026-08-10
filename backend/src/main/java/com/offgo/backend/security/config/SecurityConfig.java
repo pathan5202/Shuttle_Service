@@ -55,9 +55,7 @@ public class SecurityConfig {
 
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:5173"
-        ));
+        configuration.setAllowedOriginPatterns(List.of("*"));
 
         configuration.setAllowedMethods(List.of(
                 "GET",
@@ -69,7 +67,7 @@ public class SecurityConfig {
         ));
 
         configuration.setAllowedHeaders(List.of("*"));
-
+        configuration.setExposedHeaders(List.of("Authorization", "Link", "X-Total-Count"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source =
@@ -98,6 +96,7 @@ public class SecurityConfig {
 
                          .requestMatchers(
                                 "/api/v1/auth/**",
+                                "/api/v1/users/**",
                                 "/api/v1/drivers/**",
                                 "/api/v1/shuttles/**",
                                 "/api/v1/stops/**",
@@ -117,7 +116,9 @@ public class SecurityConfig {
                                 "/api/v1/attendance/**",
                                 "/api/v1/bookings/**",
                                 "/api/v1/dashboard/**",
-                                "/api/v1/notifications/**"
+                                "/api/v1/notifications/**",
+                                "/api/v1/admin/**",
+                                "/error"
                         )
                         .permitAll()
 
